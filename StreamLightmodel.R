@@ -6,23 +6,11 @@
 library(StreamLight)
 library(StreamLightUtils)
 
-#1. Download NLDAS data (NC_NHC example) ----------------------------------
-NLDAS_DL(
-  save_dir = working_dir,
-  Site_ID = "NC_NHC",
-  Lat = 35.9925, 
-  Lon = -79.0460, 
-  startDate = "2017-01-01"
-)
-
-#Process the downloaded data
-NLDAS_processed <- NLDAS_proc(
-  read_dir = working_dir, 
-  Site_IDs = "NC_NHC"
-)
+#1. Download NLDAS data (AZ_OC example) ----------------------------------
+working_dir <- "C:/Users/mlauc/Documents/AZstreamPULSE"
 
 #Read in a table with initial site information
-sites <- data(NC_site_basic)
+sites <- read.csv("sites.csv")
 
 #Download NLDAS data at NC_NHC
 NLDAS_DL_bulk(
@@ -32,6 +20,8 @@ NLDAS_DL_bulk(
 
 #List of successfully downloaded sites
 NLDAS_list <- stringr::str_sub(list.files(working_dir), 1, -11)
+
+NLDAS_list<-NLDAS_list[1:4]
 
 #Processing the downloaded NLDAS data
 NLDAS_processed <- StreamLightUtils::NLDAS_proc(read_dir = working_dir, NLDAS_list)
@@ -46,16 +36,38 @@ request_sites <- sites[, c("Site_ID", "Lat", "Lon")]
 #Export your sites as a .csv for the AppEEARS request  
 write.table(
   request_sites, 
-  paste0(working_dir, "/NC_sites.csv"), 
+  paste0(working_dir, "/AZ_sites.csv"), 
   sep = ",", 
   row.names = FALSE,
   quote = FALSE, 
   col.names = FALSE
 )
 
+MOD_unpack <- AppEEARS_unpack_QC(
+  zip_file = "AZ_sites.zip", 
+  zip_dir = working_dir, 
+  request_sites[, "Site_ID"]
+)
+
+MOD_processed <- AppEEARS_proc(
+  unpacked_LAI = MOD_unpack,  
+  fit_method = "Gu", 
+  plot = TRUE
+)
 
 
 #3. Using stream_light---------------------------------------------
+
+site_locs<-sites[-4]
+site_locs$EPSG <-"4326"
+
+make_driver(site_locs, NLDAS_processed, MOD_processed)
+
+################
+##stopped here##
+#Error in if (site_crs == 4326) { : argument is of length zero ???
+################
+
 
 #Read in a driver file
 data(NC_NHC_driver)
@@ -68,7 +80,6 @@ extract_height(
   Lon = NC_params[, "Lon"],
   site_crs = NC_params[, "epsg_crs"]
 )
-
 
 #Load the example driver file for NC_NHC
 data(NC_NHC_driver)
@@ -175,5 +186,6 @@ modeled_estimates <- lapply(
   model_parameters = site_parameters,
   model_drivers = inputs_outputs
 )
+
 
 
